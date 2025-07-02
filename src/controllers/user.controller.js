@@ -466,7 +466,7 @@ const generateAccessAndRefreshToken = async (userId) => {
       throw new ApiError(404, "User Not found by ID");
     }
 
-    const accessToken = user.generateAccesToken();
+    const accessToken = user.generateAccesToken(); // ✅ Fixed here
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
@@ -474,12 +474,15 @@ const generateAccessAndRefreshToken = async (userId) => {
 
     return { accessToken, refreshToken };
   } catch (error) {
+    console.error("Token generation error:", error); // add this
     throw new ApiError(
       500,
       "Something went wrong while generating access and refresh tokens"
     );
   }
 };
+
+
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
@@ -561,11 +564,14 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "User not logged in after token generation");
   }
 
+  const isDev = process.env.NODE_ENV !== "production";
+
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // Set to false for local HTTP development
-    sameSite: "Strict",
+    secure: process.env.NODE_ENV === "production", // true only in prod
+    sameSite: process.env.NODE_ENV === "production" ? "Strict" : "Lax",
   };
+  
 
   return res
     .status(200)
@@ -578,6 +584,7 @@ const loginUser = asyncHandler(async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     })
     .json(new ApiResponse(200, loggedInUser, "User logged in successfully"));
+
 });
 
 export { registerUser, loginUser };

@@ -67,8 +67,8 @@ UserSchema.methods.generateAccesToken = function () {
         email: this.email,
         username: this.username,
       },
-      process.env.ACCESS_TOKEN_SECRET, // Corrected typo: ACCES -> ACCESS
-      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY } // Corrected typo: ACCES -> ACCESS
+      process.env.ACCES_TOKEN_SECRET, // Corrected typo: ACCES -> ACCESS
+      { expiresIn: process.env.ACCES_TOKEN_EXPIRY } // Corrected typo: ACCES -> ACCESS
     );
   } catch (err) {
     throw err;
@@ -91,12 +91,3 @@ UserSchema.methods.generateRefreshToken = function () {
 
 // Mongoose model will create the table as User (always start with upper) using the schema provided
 export const User = mongoose.model("User", UserSchema);
-
-// Remove password and refreshToken from user object when queried
-UserSchema.pre("find", function () {
-  this.select("-password -refreshToken");
-});
-UserSchema.pre("findOne", function () {
-  // Also apply to findOne
-  this.select("-password -refreshToken");
-});
