@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { registerUser,loginUser } from "../controllers/user.controller.js";
+import { registerUser,loginUser,logoutUser } from "../controllers/user.controller.js";
 
 const router = Router();
 
@@ -11,7 +11,7 @@ router.route("/login").post(loginUser);
 // router.route("/refresh-token").post(refreshAccssToken);
 
 // //secured routes
-// router.route("/logout").post(verifyJWT,logoutUser)
+router.route("/logout").post(verifyJWT,logoutUser);
 // router.route("/change-password").post(verifyJWT,changeCurrentPassword);
 // router.route("/current-user").get(verifyJWT,getCurrentUser);
 // router.route("/c/:username").get(verifyJWT,getUserchannelProfile);
