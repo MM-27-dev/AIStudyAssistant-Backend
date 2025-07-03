@@ -8,7 +8,10 @@ const app = express();
 // ✅ CORS first
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://ai-study-assistant-frontend-umber.vercel.app/",
+    ],
     credentials: true,
   })
 );
