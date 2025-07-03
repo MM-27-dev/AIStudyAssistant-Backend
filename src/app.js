@@ -4,17 +4,29 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 
 const app = express();
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://ai-study-assistant-frontend-umber.vercel.app",
+];
 
-// ✅ CORS first
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://ai-study-assistant-frontend-umber.vercel.app/",
-    ],
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
+
+app.use((req, res, next) => {
+  console.log("Origin:", req.headers.origin);
+  next();
+});
+
 
 // ✅ Cookie parser
 app.use(cookieParser());
