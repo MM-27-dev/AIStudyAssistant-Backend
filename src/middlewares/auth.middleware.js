@@ -7,13 +7,20 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
  
    const token = req.cookies.accessToken || req.body.accessToken;
    
+   if (!process.env.ACCESS_TOKEN_SECRET) {
+     console.error("❌ ACCESS_TOKEN_SECRET is missing!");
+   }
+   if (!process.env.ACCESS_TOKEN_EXPIRY) {
+     console.error("❌ ACCESS_TOKEN_EXPIRY is missing!");
+   }
+  
 
   if (!token) {
     throw new ApiError(401, "Unauthorized");
   }
 
   try {
-    const decodedToken = jwt.verify(token, process.env.ACCES_TOKEN_SECRET);
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     console.log("Verify token", decodedToken);
     
