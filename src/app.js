@@ -15,12 +15,13 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   "http://localhost:5173",
   "https://ai-study-assistant-frontend-umber.vercel.app",
-  "https://ai-study-assistant-frontend-three.vercel.app"
+  "https://ai-study-assistant-frontend-three.vercel.app",
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
+      console.log("Incoming request origin:", origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -41,7 +42,6 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 // ✅ Serve static files in app
 app.use(express.static("public"));
 
-
 const storage = multer.memoryStorage();
 
 const fileUpload = multer({ storage });
@@ -51,7 +51,7 @@ export const uploadSingleFile = fileUpload.single("file");
 // ✅ Import routes
 import healthcheckRouter from "./routes/healthcheck.routes.js";
 import userRouter from "./routes/user.routes.js";
-import chatRoutes from "./routes/chat.routes.js"
+import chatRoutes from "./routes/chat.routes.js";
 import { errorHandler } from "./middlewares/error.middlerware.js";
 import multer from "multer";
 

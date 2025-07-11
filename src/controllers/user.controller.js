@@ -85,27 +85,22 @@ const registerUser = asyncHandler(async (req, res) => {
 // -------------------- LOGIN USER --------------------
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  // console.log("Login Request body:", req.body);
 
-  // Validate input
+  console.log("Login Body:", req.body);
   if (!email || !password) {
     throw new ApiError(400, "Email and password are required");
   }
 
   const user = await User.findOne({ email });
-  // console.log("User details as in DB", user);
-
   if (!user) {
     throw new ApiError(404, "User not found with this email");
   }
 
-  // Check password validity
   const isPasswordValid = await user.isPasswordCorrect(password);
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid Credentials");
   }
 
-  // Generate tokens
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
     user._id
   );
@@ -117,12 +112,11 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "User not logged in after token generation");
   }
 
-  // Set cookie options
+  const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "Strict" : "Lax",
-    path: "/",
+    secure: isProduction, // Use secure cookies in production
+    sameSite: isProduction ? "None" : "Lax", // Required for cross-origin in production
   };
 
   return res
@@ -137,8 +131,6 @@ const loginUser = asyncHandler(async (req, res) => {
     })
     .json(new ApiResponse(200, loggedInUser, "User logged in successfully"));
 });
-
-
 
 // -------------------- LOGOUT USER --------------------
 const logoutUser = asyncHandler(async (req, res) => {
