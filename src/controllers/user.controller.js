@@ -114,7 +114,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "None", // Required for cross-origin in production
   };
 
@@ -142,7 +142,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "None",
   };
 
   // Clear tokens from cookies
@@ -213,7 +214,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "None",
     };
 
