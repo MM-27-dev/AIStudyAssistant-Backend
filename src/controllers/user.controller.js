@@ -112,11 +112,10 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "User not logged in after token generation");
   }
 
-  const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction, // Use secure cookies in production
-    sameSite: isProduction ? "None" : "Lax", // Required for cross-origin in production
+    sameSite: "None", // Required for cross-origin in production
   };
 
   return res
@@ -215,7 +214,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "Strict" : "Lax",
+      sameSite: "None",
     };
 
     return res
