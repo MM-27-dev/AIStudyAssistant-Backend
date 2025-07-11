@@ -58,22 +58,47 @@ UserSchema.methods.isPasswordCorrect = async function (candidatePassword) {
   }
 };
 
+// UserSchema.methods.generateAccesToken = function () {
+//   try {
+//     return jwt.sign(
+//       {
+//         _id: this._id,
+//         email: this.email,
+//         username: this.username,
+//       },
+//       process.env.ACCES_TOKEN_SECRET, // Corrected typo: ACCES -> ACCESS
+//       { expiresIn: process.env.ACCES_TOKEN_EXPIRY } // Corrected typo: ACCES -> ACCESS
+//     );
+//   } catch (err) {
+//     throw err;
+//   }
+// };
+
+
 UserSchema.methods.generateAccesToken = function () {
   try {
+    console.log("✅ Access token generation started");
+    console.log(
+      "ACCESS_TOKEN_SECRET exists:",
+      !!process.env.ACCESS_TOKEN_SECRET
+    );
+    console.log("ACCESS_TOKEN_EXPIRY:", process.env.ACCESS_TOKEN_EXPIRY);
+
     return jwt.sign(
       {
         _id: this._id,
         email: this.email,
         username: this.username,
       },
-      process.env.ACCES_TOKEN_SECRET, // Corrected typo: ACCES -> ACCESS
-      { expiresIn: process.env.ACCES_TOKEN_EXPIRY } // Corrected typo: ACCES -> ACCESS
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
   } catch (err) {
+    console.error("❌ Error inside generateAccesToken:", err);
     throw err;
   }
 };
-
+ 
 UserSchema.methods.generateRefreshToken = function () {
   try {
     return jwt.sign(
