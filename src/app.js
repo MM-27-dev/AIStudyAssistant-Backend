@@ -15,6 +15,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   "http://localhost:5173",
   "https://ai-study-assistant-frontend-umber.vercel.app",
+  "https://ai-study-assistant-frontend-three.vercel.app"
 ];
 
 app.use(
