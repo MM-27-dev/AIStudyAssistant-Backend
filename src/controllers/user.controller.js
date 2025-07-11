@@ -128,7 +128,7 @@ const loginUser = asyncHandler(async (req, res) => {
     .status(200)
     .cookie("accessToken", accessToken, {
       ...cookieOptions,
-      maxAge: ms(process.env.ACCES_TOKEN_EXPIRY),
+      maxAge: ms(process.env.ACCESS_TOKEN_EXPIRY),
     })
     .cookie("refreshToken", refreshToken, {
       ...cookieOptions,
