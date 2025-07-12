@@ -2,6 +2,7 @@ import { Session } from "../models/session.model.js";
 import { Message } from "../models/message.model.js";
 import { generateTeacherResponse } from "../helper/getResponse.helper.js";
 import { generateTitleFromMessages } from "../helper/getResponse.helper.js";
+import { extractFileContent } from "../helper/extractFileContent.js";
 
 // POST /session
 export const createSession = async (req, res) => {
@@ -107,8 +108,17 @@ export const sendFileMessage = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user._id;
+    console.log("User Id", req.user._id);
+    
 
+    // const uploadedFile = req.file;
     const uploadedFile = req.file;
+    const message = req.body.message; 
+     console.log("Uploaded File:", uploadedFile.originalname);
+     console.log("User message:", message);
+
+     
+    
     if (!uploadedFile) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -118,6 +128,9 @@ export const sendFileMessage = async (req, res) => {
       uploadedFile.mimetype
     );
 
+    console.log("Extracted File Content:", contentText);
+
+
     const fileObj = {
       filename: uploadedFile.filename,
       originalName: uploadedFile.originalname,
@@ -126,14 +139,29 @@ export const sendFileMessage = async (req, res) => {
     };
 
     // 1. Save file message
+    // const fileMessage = await Message.create({
+    //   sessionId,
+    //   userId,
+    //   isUser: true,
+    //   content: contentText,
+    //   messageType: "file",
+    //   file: fileObj,
+    // });
+
     const fileMessage = await Message.create({
       sessionId,
       userId,
       isUser: true,
-      content: contentText,
+      content: message || contentText, // ← the user-typed text (optional)
       messageType: "file",
-      file: fileObj,
+      file: {
+        filename: uploadedFile.filename,
+        originalName: uploadedFile.originalname,
+        path: uploadedFile.path || "in-memory",
+        content: contentText, // optional: extracted file text
+      },
     });
+
 
     await Session.findByIdAndUpdate(sessionId, {
       $push: { messages: fileMessage._id },
@@ -146,10 +174,27 @@ export const sendFileMessage = async (req, res) => {
       .lean();
 
     // 3. Format messages for OpenAI
-    const messageHistory = messages.map((msg) => ({
-      role: msg.isUser ? "user" : "assistant",
-      content: msg.content,
-    }));
+    // const messageHistory = messages.map((msg) => ({
+    //   role: msg.isUser ? "user" : "assistant",
+    //   content: msg.content,
+    // }));
+
+    const messageHistory = messages.map((msg) => {
+      if (msg.messageType === "file") {
+        return {
+          role: "user",
+          content: `Uploaded File: ${msg.file.originalName}\n\n${msg.file.content}`,
+        };
+      }
+      return {
+        role: msg.isUser ? "user" : "assistant",
+        content: msg.content,
+      };
+    });
+
+
+    console.log("Message history for AI:", messageHistory);
+
 
     // 4. Generate AI Response based on full message history
     const aiResponseText = await generateTeacherResponse(messageHistory);
@@ -168,7 +213,20 @@ export const sendFileMessage = async (req, res) => {
       $set: { updatedAt: new Date() },
     });
 
-    return res.status(201).json({ fileMessage, aiMessage });
+    // return res.status(201).json({ fileMessage, aiMessage });
+    return res.status(201).json({
+      fileMessage: {
+        ...fileMessage.toObject(),
+        file: {
+          filename: uploadedFile.filename,
+          originalName: uploadedFile.originalname,
+          path: uploadedFile.path || "in-memory",
+          content: contentText,
+        },
+      },
+      aiMessage,
+    });
+
   } catch (err) {
     console.error("❌ Error in sendFileMessage:", err);
     return res.status(500).json({ error: err.message });

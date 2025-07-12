@@ -9,7 +9,7 @@ import {
   endSessionAndGenerateTitle,
   sendFileMessage,
 } from "../controllers/chat.controller.js";
-import { uploadMultipleFiles } from "../middlewares/multer.middleware.js";
+import { uploadMultipleFiles, uploadSingleFile } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -24,7 +24,8 @@ router.post("/session/:sessionId/end", verifyJWT, endSessionAndGenerateTitle); /
 
 router.post(
   "/session/:sessionId/message/file",
-  uploadMultipleFiles,
+  verifyJWT,
+  uploadSingleFile,
   sendFileMessage
 );
 

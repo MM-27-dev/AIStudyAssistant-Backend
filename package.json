@@ -17,6 +17,8 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "globals": "^16.3.0",
     "nodemon": "^3.1.10",
     "prettier": "^3.5.3"
   },
@@ -35,6 +37,7 @@
     "multer": "^2.0.1",
     "openai": "^5.8.2",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^2.16.105",
     "tesseract.js": "^6.0.1",
     "textract": "^2.5.0"
   }
