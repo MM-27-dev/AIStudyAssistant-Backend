@@ -21,7 +21,7 @@ Use examples, analogies, and visual descriptions when needed.
       ...messageHistory, // ✅ Correct way to add the full conversation
     ],
     temperature: 0.7,
-    max_tokens: 100,
+    max_tokens: 500,
   });
 
   return completion.choices[0].message.content;
@@ -88,7 +88,7 @@ Do not ignore this content even if the user uploads multiple files. Treat each n
       ...messageHistory,
     ],
     temperature: 0.6,
-    max_tokens: 400,
+    max_tokens: 1000,
   });
 
   return completion.choices[0].message.content;
