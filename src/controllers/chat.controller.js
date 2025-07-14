@@ -1,6 +1,9 @@
 import { Session } from "../models/session.model.js";
 import { Message } from "../models/message.model.js";
-import { generateTeacherResponse } from "../helper/getResponse.helper.js";
+import {
+  generateFileAwareResponse,
+  generateTeacherResponse,
+} from "../helper/getResponse.helper.js";
 import { generateTitleFromMessages } from "../helper/getResponse.helper.js";
 import { extractFileContent } from "../helper/extractFileContent.js";
 
@@ -47,143 +50,41 @@ export const getSessionMessages = async (req, res) => {
 };
 
 // POST /session/:sessionId/message
+// This endpoint handles both text and file messages
 export const sendMessage = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { content, isUser, messageType, file } = req.body;
+    const { content } = req.body;
+    const userId = req.user._id;
 
-    // 1. Save user message
+    if (!content) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    // 1. Save user text message
     const userMessage = await Message.create({
       sessionId,
-      userId: req.user._id,
-      isUser: isUser,
+      userId,
+      isUser: true,
       content,
-      messageType: messageType || "text",
-      file,
+      messageType: "text",
     });
 
-    // 2. Update session with user message
     await Session.findByIdAndUpdate(sessionId, {
       $push: { messages: userMessage._id },
       $set: { updatedAt: new Date() },
     });
 
-    // 3. Get full message history for this session
-    const messages = await Message.find({ sessionId })
-      .sort({ createdAt: 1 }) // Sort oldest to newest
-      .lean();
-
-    // 4. Prepare messages array for AI (e.g., OpenAI-style prompt array)
-    const messageHistory = messages.map((msg) => ({
-      role: msg.isUser ? "user" : "assistant",
-      content: msg.content,
-    }));
-
-    // 5. Generate AI response based on full history
-    const aiContent = await generateTeacherResponse(messageHistory); // accepts full history
-
-    // 6. Save AI message
-    const aiMessage = await Message.create({
-      sessionId,
-      userId: req.user._id, // or a system user ID
-      isUser: false,
-      content: aiContent,
-      messageType: "text",
-    });
-
-    await Session.findByIdAndUpdate(sessionId, {
-      $push: { messages: aiMessage._id },
-      $set: { updatedAt: new Date() },
-    });
-
-    // 7. Return both messages
-    return res.status(201).json({ userMessage, aiMessage });
-  } catch (err) {
-    console.error("💥 sendMessage error:", err);
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-export const sendFileMessage = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const userId = req.user._id;
-    console.log("User Id", req.user._id);
-    
-
-    // const uploadedFile = req.file;
-    const uploadedFile = req.file;
-    const message = req.body.message; 
-     console.log("Uploaded File:", uploadedFile.originalname);
-     console.log("User message:", message);
-
-     
-    
-    if (!uploadedFile) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    const contentText = await extractFileContent(
-      uploadedFile.buffer,
-      uploadedFile.mimetype
-    );
-
-    console.log("Extracted File Content:", contentText);
-
-
-    const fileObj = {
-      filename: uploadedFile.filename,
-      originalName: uploadedFile.originalname,
-      path: uploadedFile.path || "in-memory",
-      content: contentText,
-    };
-
-    // 1. Save file message
-    // const fileMessage = await Message.create({
-    //   sessionId,
-    //   userId,
-    //   isUser: true,
-    //   content: contentText,
-    //   messageType: "file",
-    //   file: fileObj,
-    // });
-
-    const fileMessage = await Message.create({
-      sessionId,
-      userId,
-      isUser: true,
-      content: message || contentText, // ← the user-typed text (optional)
-      messageType: "file",
-      file: {
-        filename: uploadedFile.filename,
-        originalName: uploadedFile.originalname,
-        path: uploadedFile.path || "in-memory",
-        content: contentText, // optional: extracted file text
-      },
-    });
-
-
-    await Session.findByIdAndUpdate(sessionId, {
-      $push: { messages: fileMessage._id },
-      $set: { updatedAt: new Date() },
-    });
-
-    // 2. Fetch full message history for this session
+    const session = await Session.findById(sessionId).lean();
     const messages = await Message.find({ sessionId })
       .sort({ createdAt: 1 })
       .lean();
-
-    // 3. Format messages for OpenAI
-    // const messageHistory = messages.map((msg) => ({
-    //   role: msg.isUser ? "user" : "assistant",
-    //   content: msg.content,
-    // }));
 
     const messageHistory = messages.map((msg) => {
       if (msg.messageType === "file") {
         return {
           role: "user",
-          content: `Uploaded File: ${msg.file.originalName}\n\n${msg.file.content}`,
+          content: `Uploaded File: ${msg.file?.originalName || "Unknown"}\n\n${msg.file?.content || ""}`,
         };
       }
       return {
@@ -192,19 +93,36 @@ export const sendFileMessage = async (req, res) => {
       };
     });
 
+    // ✅ If session has file memory, prepend memory prompt
+    let fullHistory = [...messageHistory];
 
-    console.log("Message history for AI:", messageHistory);
+    if (session?.latestFile?.content) {
+      const fileMemoryPrompt = {
+        role: "user",
+        content: `
+Previously uploaded file: ${session.latestFile.name}
 
+------------------ Begin File Content ------------------
+${session.latestFile.content}
+------------------- End File Content ------------------
 
-    // 4. Generate AI Response based on full message history
-    const aiResponseText = await generateTeacherResponse(messageHistory);
+Please use this file as context for this and future questions.`,
+      };
 
-    // 5. Save AI message
+      fullHistory = [fileMemoryPrompt, ...fullHistory];
+    }
+
+    const aiResponse = await generateFileAwareResponse(
+      fullHistory,
+      session?.latestFile?.content || "",
+      session?.latestFile?.name || ""
+    );
+
     const aiMessage = await Message.create({
       sessionId,
       userId,
       isUser: false,
-      content: aiResponseText,
+      content: aiResponse,
       messageType: "text",
     });
 
@@ -213,7 +131,133 @@ export const sendFileMessage = async (req, res) => {
       $set: { updatedAt: new Date() },
     });
 
-    // return res.status(201).json({ fileMessage, aiMessage });
+    return res.status(201).json({ userMessage, aiMessage });
+  } catch (err) {
+    console.error("❌ Error in sendMessage:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const sendFileMessage = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user._id;
+
+    const uploadedFile = req.file;
+    const message = req.body.message;
+
+    if (!uploadedFile) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // 1. Extract file content
+    const contentText = await extractFileContent(
+      uploadedFile.buffer,
+      uploadedFile.mimetype
+    );
+
+    // 2. Save file message to DB
+    const fileMessage = await Message.create({
+      sessionId,
+      userId,
+      isUser: true,
+      content: message || contentText,
+      messageType: "file",
+      file: {
+        filename: uploadedFile.filename,
+        originalName: uploadedFile.originalname,
+        path: uploadedFile.path || "in-memory",
+        content: contentText,
+      },
+    });
+
+    // 3. Update session with latest file info
+    await Session.findByIdAndUpdate(sessionId, {
+      $push: { messages: fileMessage._id },
+      $set: {
+        updatedAt: new Date(),
+        latestFile: {
+          name: uploadedFile.originalname,
+          content: contentText,
+        },
+      },
+    });
+
+    let aiMessage = null;
+
+    // 4. If user also typed a message, process it as a new text message
+    if (message) {
+      const userTextMessage = await Message.create({
+        sessionId,
+        userId,
+        isUser: true,
+        content: message,
+        messageType: "text",
+      });
+
+      await Session.findByIdAndUpdate(sessionId, {
+        $push: { messages: userTextMessage._id },
+        $set: { updatedAt: new Date() },
+      });
+
+      // 5. Fetch full session and message history
+      const session = await Session.findById(sessionId).lean();
+      const allMessages = await Message.find({ sessionId })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      const messageHistory = allMessages.map((msg) => {
+        if (msg.messageType === "file") {
+          return {
+            role: "user",
+            content: `Uploaded File: ${msg.file?.originalName || "Unknown"}\n\n${msg.file?.content || ""}`,
+          };
+        }
+        return {
+          role: msg.isUser ? "user" : "assistant",
+          content: msg.content,
+        };
+      });
+
+      // 6. Add memory prompt if file is present
+      let fullHistory = [...messageHistory];
+      if (session?.latestFile?.content) {
+        const fileMemoryPrompt = {
+          role: "user",
+          content: `
+          Previously uploaded file: ${session.latestFile.name}
+          
+          ------------------ Begin File Content ------------------
+          ${session.latestFile.content}
+          ------------------- End File Content ------------------
+          
+          Please use this file as context for this and future questions.`,
+        };
+        fullHistory = [fileMemoryPrompt, ...fullHistory];
+      }
+
+      // 7. Generate AI response
+      const aiResponse = await generateFileAwareResponse(
+        fullHistory,
+        session?.latestFile?.content || "",
+        session?.latestFile?.name || ""
+      );
+
+      aiMessage = await Message.create({
+        sessionId,
+        userId,
+        isUser: false,
+        content: aiResponse,
+        messageType: "text",
+      });
+
+      await Session.findByIdAndUpdate(sessionId, {
+        $push: { messages: aiMessage._id },
+        $set: { updatedAt: new Date() },
+      });
+    }
+
+    // 8. Return response
     return res.status(201).json({
       fileMessage: {
         ...fileMessage.toObject(),
@@ -226,10 +270,11 @@ export const sendFileMessage = async (req, res) => {
       },
       aiMessage,
     });
-
   } catch (err) {
     console.error("❌ Error in sendFileMessage:", err);
-    return res.status(500).json({ error: err.message });
+    return res
+      .status(500)
+      .json({ error: err.message || "Internal server error" });
   }
 };
 
