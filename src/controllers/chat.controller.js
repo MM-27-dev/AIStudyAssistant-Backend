@@ -324,6 +324,37 @@ export const endSessionAndGenerateTitle = async (req, res) => {
   }
 };
 
+// controllers/openai.controller.js
+export const getToken = async (req, res) => {
+  const voice = req.body.voice;
+
+  console.log("Creating OpenAI session with voice:", voice);
+  
+  try {
+    const response = await fetch(
+      "https://api.openai.com/v1/realtime/sessions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "realtime=v1",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-realtime-preview-2024-12-17",
+          voice: voice,
+        }),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("Session creation failed:", err);
+    res.status(500).json({ error: "Session creation failed" });
+  }
+};
+
 // // POST /session/:sessionId/feedback
 // export const provideSessionFeedback = async (req, res) => {
 //   try {

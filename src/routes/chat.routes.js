@@ -8,6 +8,7 @@ import {
   // provideSessionFeedback,
   endSessionAndGenerateTitle,
   sendFileMessage,
+  getToken,
 } from "../controllers/chat.controller.js";
 import { uploadMultipleFiles, uploadSingleFile } from "../middlewares/multer.middleware.js";
 
@@ -28,5 +29,7 @@ router.post(
   uploadSingleFile,
   sendFileMessage
 );
+
+router.post("/openai/token", verifyJWT, getToken);
 
 export default router;
