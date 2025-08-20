@@ -9,8 +9,12 @@ import {
   endSessionAndGenerateTitle,
   sendFileMessage,
   getToken,
+  saveMessage,
 } from "../controllers/chat.controller.js";
-import { uploadMultipleFiles, uploadSingleFile } from "../middlewares/multer.middleware.js";
+import {
+  uploadMultipleFiles,
+  uploadSingleFile,
+} from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -18,8 +22,8 @@ const router = Router();
 router.post("/session", verifyJWT, createSession); // Create new session
 router.get("/sessions", verifyJWT, getUserSessions); // List user's sessions
 router.get("/session/:sessionId/messages", verifyJWT, getSessionMessages);
-
 router.post("/session/:sessionId/message", verifyJWT, sendMessage); // Send a message in session
+router.post("/session/message/save/:sessionId", verifyJWT, saveMessage); // Save a message
 router.post("/session/:sessionId/end", verifyJWT, endSessionAndGenerateTitle); // Update session title
 // router.post("/session/:sessionId/feedback", verifyJWT, provideSessionFeedback); // Add feedback
 

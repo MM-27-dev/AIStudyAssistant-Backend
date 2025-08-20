@@ -31,7 +31,7 @@ const MessageSchema = new Schema(
     },
     messageType: {
       type: String,
-      enum: ["text", "file", "image", "code", "voice"], // extend as needed
+      enum: ["text", "file", "image", "code", "voice", "bot_voice"], 
       default: "text",
     },
     file: {

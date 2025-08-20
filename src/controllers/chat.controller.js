@@ -34,12 +34,10 @@ export const getUserSessions = async (req, res) => {
 };
 
 // GET /session/:sessionId/messages
-// GET /session/:sessionId/messages
 export const getSessionMessages = async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    // Fetch messages for the given sessionId
     const messages = await Message.find({ sessionId }).sort({ createdAt: 1 });
 
     return res.status(200).json(messages);
@@ -49,119 +47,30 @@ export const getSessionMessages = async (req, res) => {
   }
 };
 
-// POST /session/:sessionId/message
-// This endpoint handles both text and file messages
-// export const sendMessage = async (req, res) => {
-//   try {
-//     const { sessionId } = req.params;
-//     const { content } = req.body;
-//     const userId = req.user._id;
-
-//     if (!content) {
-//       return res.status(400).json({ error: "Message is required" });
-//     }
-
-//     // 1. Save user text message
-//     const userMessage = await Message.create({
-//       sessionId,
-//       userId,
-//       isUser: true,
-//       content,
-//       messageType: "text",
-//     });
-
-//     await Session.findByIdAndUpdate(sessionId, {
-//       $push: { messages: userMessage._id },
-//       $set: { updatedAt: new Date() },
-//     });
-
-//     const session = await Session.findById(sessionId).lean();
-//     const messages = await Message.find({ sessionId })
-//       .sort({ createdAt: 1 })
-//       .lean();
-
-//     const messageHistory = messages.map((msg) => {
-//       if (msg.messageType === "file") {
-//         return {
-//           role: "user",
-//           content: `Uploaded File: ${msg.file?.originalName || "Unknown"}\n\n${msg.file?.content || ""}`,
-//         };
-//       }
-//       return {
-//         role: msg.isUser ? "user" : "assistant",
-//         content: msg.content,
-//       };
-//     });
-
-//     // ✅ If session has file memory, prepend memory prompt
-//     let fullHistory = [...messageHistory];
-
-//     if (session?.latestFile?.content) {
-//       const fileMemoryPrompt = {
-//         role: "user",
-//         content: `
-// Previously uploaded file: ${session.latestFile.name}
-
-// ------------------ Begin File Content ------------------
-// ${session.latestFile.content}
-// ------------------- End File Content ------------------
-
-// Please use this file as context for this and future questions.`,
-//       };
-
-//       fullHistory = [fileMemoryPrompt, ...fullHistory];
-//     }
-
-//     const aiResponse = await generateFileAwareResponse(
-//       fullHistory,
-//       session?.latestFile?.content || "",
-//       session?.latestFile?.name || ""
-//     );
-
-//     const aiMessage = await Message.create({
-//       sessionId,
-//       userId,
-//       isUser: false,
-//       content: aiResponse,
-//       messageType: "text",
-//     });
-
-//     await Session.findByIdAndUpdate(sessionId, {
-//       $push: { messages: aiMessage._id },
-//       $set: { updatedAt: new Date() },
-//     });
-
-//     return res.status(201).json({ userMessage, aiMessage });
-//   } catch (err) {
-//     console.error("❌ Error in sendMessage:", err);
-//     return res.status(500).json({ error: "Internal server error" });
-//   }
-// };
 
 
 export const sendMessage = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { content, isUser, messageType } = req.body; // Destructure messageType and isUser
+    const { content, isUser, messageType } = req.body; 
 
     const userId = req.user._id;
 
     if (!content) {
       return res.status(400).json({ error: "Message content is required" });
-    } // 1. Save user/AI message based on isUser and messageType
+    }
 
     const newMessage = await Message.create({
       sessionId,
       userId,
-      isUser, // This will be true for user's text/voice, false for AI's text/voice
+      isUser,
       content,
-      messageType: messageType || "text", // Use provided messageType or default to "text"
     });
 
     await Session.findByIdAndUpdate(sessionId, {
       $push: { messages: newMessage._id },
       $set: { updatedAt: new Date() },
-    }); // If the incoming message is a user message (text or voice), generate an AI response
+    }); 
 
     if (isUser) {
       const session = await Session.findById(sessionId).lean();
@@ -211,7 +120,7 @@ Please use this file as context for this and future questions.`,
         userId,
         isUser: false,
         content: aiResponseContent,
-        messageType: "text", // AI's response to voice will still be text unless it's a voice output from another source
+        messageType: "text",
       });
 
       await Session.findByIdAndUpdate(sessionId, {
@@ -221,15 +130,44 @@ Please use this file as context for this and future questions.`,
 
       return res.status(201).json({ userMessage: newMessage, aiMessage });
     } else {
-      // If it's an AI message being saved (e.g., from voice agent), just return it
       return res.status(201).json({ aiMessage: newMessage });
     }
   } catch (err) {
-    console.error("❌ Error in sendMessage:", err);
+    console.error("Error in sendMessage:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
+export const saveMessage = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { content, isUser, messageType } = req.body;
+
+    const userId = req.user._id;
+
+    if (!content) {
+      return res.status(400).json({ error: "Message content is required" });
+    }
+
+    const newMessage = await Message.create({
+      sessionId,
+      userId,
+      isUser,
+      content,
+      messageType: messageType || "text",
+    });
+
+    await Session.findByIdAndUpdate(sessionId, {
+      $push: { messages: newMessage._id },
+      $set: { updatedAt: new Date() },
+    });
+
+    return res.status(201).json({ message: newMessage });
+  } catch (err) {
+    console.error("Error in saveMessage:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 export const sendFileMessage = async (req, res) => {
   try {
@@ -412,7 +350,7 @@ export const endSessionAndGenerateTitle = async (req, res) => {
       session: updatedSession,
     });
   } catch (err) {
-    console.error("❌ Error in endSessionAndGenerateTitle:", err);
+    console.error("Error in endSessionAndGenerateTitle:", err);
     return res.status(500).json({ error: err.message });
   }
 };
@@ -422,7 +360,7 @@ export const getToken = async (req, res) => {
   const voice = req.body.voice;
 
   console.log("Creating OpenAI session with voice:", voice);
-  
+
   try {
     const response = await fetch(
       "https://api.openai.com/v1/realtime/sessions",
@@ -448,20 +386,4 @@ export const getToken = async (req, res) => {
   }
 };
 
-// // POST /session/:sessionId/feedback
-// export const provideSessionFeedback = async (req, res) => {
-//   try {
-//     const { sessionId } = req.params;
-//     const { feedback } = req.body;
 
-//     const session = await Session.findByIdAndUpdate(
-//       sessionId,
-//       { feedback },
-//       { new: true }
-//     );
-
-//     return res.status(200).json(session);
-//   } catch (err) {
-//     return res.status(500).json({ error: err.message });
-//   }
-// };
